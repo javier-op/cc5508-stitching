@@ -1,6 +1,8 @@
 import cv2
 from matplotlib import pyplot as plt
 import numpy as np
+import sys
+import time
 import transform
 
 def extend_image(img1, img2):
@@ -56,34 +58,51 @@ def stitch(img1, img2):
     return stitched[min_i:max_i, 0:max_j, :]
 
 
+if __name__ == '__main__':
+    if len(sys.argv) != 3:
+        raise SyntaxError('usage: stitch.py [path to first image] [path to second image]')
+    img1 = cv2.imread(sys.argv[1], cv2.IMREAD_COLOR)
+    img2 = cv2.imread(sys.argv[2], cv2.IMREAD_COLOR)
+    img1_ext = extend_image(img1, img2)
+    img1 = img1_ext[:,0:img1.shape[1],:]
 
-img1 = cv2.imread('./images/caso_1/1a.jpg', cv2.IMREAD_COLOR)
-img2 = cv2.imread('./images/caso_1/1b.jpg', cv2.IMREAD_COLOR)
-img1_ext = extend_image(img1, img2)
-img1 = img1_ext[:,0:img1.shape[1],:]
+    print('Detecting SIFT descriptors.')
+    sift = cv2.SIFT_create()
+    kp1, des1 = sift.detectAndCompute(img1, None)
+    kp2, des2 = sift.detectAndCompute(img2, None)
 
-sift = cv2.SIFT_create()
-kp1, des1 = sift.detectAndCompute(img1, None)
-kp2, des2 = sift.detectAndCompute(img2, None)
+    n_matches = 100
+    bf = cv2.BFMatcher()
+    matches = bf.match(des1,des2)
+    print('Selecting the best 100 descriptors.')
+    matches = sorted(matches, key = lambda x:  x.distance)
+    matches = matches[:n_matches]
 
-n_matches = 100
-bf = cv2.BFMatcher()
-matches = bf.match(des1,des2)
-matches = sorted(matches, key = lambda x:  x.distance)
-matches = matches[:n_matches]
+    descriptors = cv2.drawMatches(img1, kp1, img2, kp2, matches, None, flags=2)
+    cv2.imwrite('descriptors.png', descriptors)
 
-src = np.zeros((3,n_matches), dtype=np.float32)
-dst = np.zeros((3,n_matches), dtype=np.float32)
-for i in range(n_matches) :
-    src[0][i] = kp1[matches[i].queryIdx].pt[0]
-    src[1][i] = kp1[matches[i].queryIdx].pt[1]
-    src[2][i] = 1
-    dst[0][i] = kp2[matches[i].trainIdx].pt[0]
-    dst[1][i] = kp2[matches[i].trainIdx].pt[1]
-    dst[2][i] = 1
+    src = np.zeros((3,n_matches), dtype=np.float32)
+    dst = np.zeros((3,n_matches), dtype=np.float32)
+    for i in range(n_matches) :
+        src[0][i] = kp1[matches[i].queryIdx].pt[0]
+        src[1][i] = kp1[matches[i].queryIdx].pt[1]
+        src[2][i] = 1
+        dst[0][i] = kp2[matches[i].trainIdx].pt[0]
+        dst[1][i] = kp2[matches[i].trainIdx].pt[1]
+        dst[2][i] = 1
 
-T = transform.estimate_transformation(src, dst, th_dist = 5)
-img2_warped = transform.warp_image(img2, T, img1_ext.shape)
-stitched = stitch(img1_ext, img2_warped) 
-plt.imshow(cv2.cvtColor(stitched, cv2.COLOR_BGR2RGB))
-plt.show()
+    print('Computing best transform with RANSAC.')
+    start = time.time()
+    T = transform.estimate_transformation(src, dst, th_dist = 5)
+    print('Done, took {} seconds.'.format(time.time()-start))
+    print('Warping second image.')
+    start = time.time()
+    img2_warped = transform.warp_image(img2, T, img1_ext.shape)
+    print('Done, took {} seconds.'.format(time.time()-start))
+    print('Stitching results.')
+    start = time.time()
+    stitched = stitch(img1_ext, img2_warped) 
+    print('Done, took {} seconds.'.format(time.time()-start))
+    cv2.imwrite('stitched.png', stitched)
+    plt.imshow(cv2.cvtColor(stitched, cv2.COLOR_BGR2RGB))
+    plt.show()
