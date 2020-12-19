@@ -64,22 +64,28 @@ if __name__ == '__main__':
     img1 = cv2.imread(sys.argv[1], cv2.IMREAD_COLOR)
     img2 = cv2.imread(sys.argv[2], cv2.IMREAD_COLOR)
     img1_ext = extend_image(img1, img2)
-    img1 = img1_ext[:,0:img1.shape[1],:]
+    img1_vert_padding = img1_ext[:,0:img1.shape[1],:]
 
     print('Detecting SIFT descriptors.')
     sift = cv2.SIFT_create()
-    kp1, des1 = sift.detectAndCompute(img1, None)
+    kp1, des1 = sift.detectAndCompute(img1_vert_padding, None)
     kp2, des2 = sift.detectAndCompute(img2, None)
-
+    kp3, des3 = sift.detectAndCompute(img1, None)
     n_matches = 100
-    bf = cv2.BFMatcher()
-    matches = bf.match(des1,des2)
+
     print('Selecting the best 100 descriptors.')
+    bf = cv2.BFMatcher()
+    n_matches = 100
+
+    matches_for_plot = bf.match(des3, des2)
+    matches_for_plot = sorted(matches_for_plot, key = lambda x:  x.distance)
+    matches_for_plot = matches_for_plot[:n_matches]
+    descriptors = cv2.drawMatches(img1, kp3, img2, kp2, matches_for_plot, None, flags=2)
+    cv2.imwrite('descriptors.png', descriptors)
+
+    matches = bf.match(des1, des2)
     matches = sorted(matches, key = lambda x:  x.distance)
     matches = matches[:n_matches]
-
-    descriptors = cv2.drawMatches(img1, kp1, img2, kp2, matches, None, flags=2)
-    cv2.imwrite('descriptors.png', descriptors)
 
     src = np.zeros((3,n_matches), dtype=np.float32)
     dst = np.zeros((3,n_matches), dtype=np.float32)
@@ -95,14 +101,17 @@ if __name__ == '__main__':
     start = time.time()
     T = transform.estimate_transformation(src, dst, th_dist = 5)
     print('Done, took {} seconds.'.format(time.time()-start))
+
     print('Warping second image.')
     start = time.time()
     img2_warped = transform.warp_image(img2, T, img1_ext.shape)
     print('Done, took {} seconds.'.format(time.time()-start))
+
     print('Stitching results.')
     start = time.time()
     stitched = stitch(img1_ext, img2_warped) 
     print('Done, took {} seconds.'.format(time.time()-start))
+
     cv2.imwrite('stitched.png', stitched)
     plt.imshow(cv2.cvtColor(stitched, cv2.COLOR_BGR2RGB))
     plt.show()
