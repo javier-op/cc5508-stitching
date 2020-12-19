@@ -16,46 +16,20 @@ def extend_image(img1, img2):
     return extended_img1
 
 def one_empty_pixel(img1, img2):
-    selected = np.zeros(img1.shape, dtype=np.bool)
-    for i in range(img1.shape[0]):
-        for j in range(img1.shape[1]):
-            selected[i][j] = [empty_pixel(img1[i][j]) != empty_pixel(img2[i][j])] * 3
-    return selected
+    return np.dstack([empty_pixels(img1) != empty_pixels(img2)]*3)
 
-def empty_pixel(pixel):
-    return pixel[0] == 0 and pixel[1] == 0 and pixel[2] == 0
+def empty_pixels(img):
+    return (img[:, :, 0] == 0) & (img[:, :, 1] == 0) & (img[:, :, 2] == 0)
 
 def stitch(img1, img2):
     where_max = one_empty_pixel(img1, img2)
     stitched = 0.5 * img1 + 0.5 * img2
     stitched = stitched.astype(np.uint8)
     stitched = np.where(where_max, np.maximum(img1, img2), stitched)
-    min_i = None
-    for i in range(stitched.shape[0]):
-        if not min_i:
-            for j in range(stitched.shape[1]):
-                if not empty_pixel(stitched[i][j]):
-                    min_i = i
-                    break
-        else:
-            break
-    max_i = None
-    for i in reversed(range(stitched.shape[0])):
-        if not max_i:
-            for j in range(stitched.shape[1]):
-                if not empty_pixel(stitched[i][j]):
-                    max_i = i
-                    break
-        else:
-            break
-    max_j = None
-    for j in reversed(range(stitched.shape[1])):
-        if not max_j:
-            for i in range(stitched.shape[0]):
-                if not empty_pixel(stitched[i][j]):
-                    max_j = j
-                    break
-    return stitched[min_i:max_i, 0:max_j, :]
+    valid_points = np.argwhere(np.invert(empty_pixels(stitched)))
+    top_left = valid_points.min(axis=0)
+    bottom_right = valid_points.max(axis=0)
+    return stitched[top_left[0]:bottom_right[0]+1, top_left[1]:bottom_right[1]+1]
 
 
 if __name__ == '__main__':
