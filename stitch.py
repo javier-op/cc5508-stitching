@@ -76,7 +76,7 @@ if __name__ == '__main__':
     T = transform.estimate_transformation(src, dst, th_dist = 5)
     print('Done, took {} seconds.'.format(time.time()-start))
 
-    print('Warping second image.')
+    print('Warping second image, may take a few minutes.')
     start = time.time()
     img2_warped = transform.warp_image(img2, T, img1_ext.shape)
     print('Done, took {} seconds.'.format(time.time()-start))
