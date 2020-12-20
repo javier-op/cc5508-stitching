@@ -45,7 +45,6 @@ if __name__ == '__main__':
     kp1, des1 = sift.detectAndCompute(img1_vert_padding, None)
     kp2, des2 = sift.detectAndCompute(img2, None)
     kp3, des3 = sift.detectAndCompute(img1, None)
-    n_matches = 100
 
     print('Selecting the best 100 descriptors.')
     bf = cv2.BFMatcher()
@@ -86,6 +85,6 @@ if __name__ == '__main__':
     stitched = stitch(img1_ext, img2_warped) 
     print('Done, took {} seconds.'.format(time.time()-start))
 
-    cv2.imwrite('stitched.png', stitched)
+    cv2.imwrite('panoramica.png', stitched)
     plt.imshow(cv2.cvtColor(stitched, cv2.COLOR_BGR2RGB))
     plt.show()

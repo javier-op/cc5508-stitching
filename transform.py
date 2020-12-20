@@ -94,7 +94,7 @@ def estimate_transformation(src, dst, th_dist = 5):
     implementa un método para estimar una buena transformación entre matches de SIFT
     RANSAC
     """
-    n_repeat = 50
+    n_repeat = 100
     #matches = sorted(matches, key = lambda x:  x.distance)
     n_matches = src.shape[1]
     #matches = matches[:n_matches]
